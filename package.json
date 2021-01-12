@@ -1,0 +1,15 @@
+{
+  "name": "essai-stencil",
+  "version": "1.0.0",
+  "description": "",
+  "main": "app.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "felix mariotto",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.17.1",
+    "three": "^0.124.0"
+  }
+}

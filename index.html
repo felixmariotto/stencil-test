@@ -17,11 +17,15 @@
 
 import * as THREE from 'https://unpkg.com/three@0.124.0/build/three.module.js';
 import { OrbitControls } from 'https://unpkg.com/three@0.124.0/examples/jsm/controls/OrbitControls.js';
+import { GLTFLoader } from 'https://unpkg.com/three@0.124.0/examples/jsm/loaders/GLTFLoader.js';
 import { GUI } from 'https://unpkg.com/three@0.124.0/examples/jsm/libs/dat.gui.module.js';
 import Stats from 'https://unpkg.com/three@0.124.0/examples/jsm/libs/stats.module.js';
 
+// from this example by gkjohnson : https://jsfiddle.net/dokev2hy/1/
+
 let scene, camera, renderer, controls;
 let cubeMesh, cubeMeshFront, cubeMeshBack;
+let planeMesh, plane;
 let backFaceStencilMat, frontFaceStencilMat, planeStencilMat;
 
 window.addEventListener( 'load', init );
@@ -31,8 +35,8 @@ function init() {
 
 	scene = new THREE.Scene();
 
-	camera = new THREE.PerspectiveCamera( 60, window.innerWidth / window.innerHeight, 0.1, 200 );
-	camera.position.set( 0, 1, 5 );
+	camera = new THREE.PerspectiveCamera( 60, window.innerWidth / window.innerHeight, 0.1, 500 );
+	camera.position.set( -10, 20, 10 );
 
 	renderer = new THREE.WebGLRenderer({ antialias: true });
 	renderer.setSize( window.innerWidth, window.innerHeight );
@@ -41,6 +45,13 @@ function init() {
 	document.body.append( renderer.domElement );
 
 	controls = new OrbitControls( camera, renderer.domElement );
+
+	const directionalLight = new THREE.DirectionalLight( 0xffffff, 0.6 );
+	directionalLight.position.set( -1, 5, -2 );
+
+	const ambientLight = new THREE.AmbientLight( 0xffffff, 0.35 );
+
+	scene.add( directionalLight, ambientLight );
 
 	createMesh();
 
@@ -51,66 +62,18 @@ function init() {
 
 function createMesh() {
 
-	initStencilMaterial();
-
-	//
-
-	const plane = new THREE.Plane( new THREE.Vector3( 0, -1, 0 ) );
+	plane = new THREE.Plane( new THREE.Vector3( 0, -1, 0 ) );
 
 	const planes = [ plane ];
 
 	// const planeHelper = new THREE.PlaneHelper( plane, 3, 0xff0000 );
 	// scene.add( planeHelper );
 
-	//
-
-	const cubeMaterial = new THREE.MeshNormalMaterial({
+	const cubeMaterial = new THREE.MeshLambertMaterial({
 		clippingPlanes: planes,
 		clipShadows: true,
 		side: THREE.DoubleSide
 	});
-
-	frontFaceStencilMat.clippingPlanes = planes;
-	backFaceStencilMat.clippingPlanes = planes;
-
-	const cubeGeometry = new THREE.BoxBufferGeometry();
-
-	cubeMesh = new THREE.Mesh(
-		cubeGeometry,
-		cubeMaterial
-	);
-
-	cubeMeshFront = new THREE.Mesh(
-		cubeGeometry,
-		frontFaceStencilMat
-	);
-
-	cubeMeshBack = new THREE.Mesh(
-		cubeGeometry,
-		backFaceStencilMat
-	);
-
-	scene.add( cubeMesh, cubeMeshFront, cubeMeshBack );
-
-	//
-
-	const planeMesh = new THREE.Mesh(
-		new THREE.PlaneBufferGeometry( 4, 4 ),
-		planeStencilMat
-	);
-
-	planeMesh.renderOrder = 1;
-
-	planeMesh.rotation.x -= Math.PI / 2;
-
-	//
-
-	scene.add( planeMesh );
-}
-
-//
-
-function initStencilMaterial() {
 
 	// PASS 1
 	// everywhere that the back faces are visible (clipped region) the stencil
@@ -125,6 +88,7 @@ function initStencilMaterial() {
 	backFaceStencilMat.stencilFail = THREE.IncrementWrapStencilOp;
 	backFaceStencilMat.stencilZFail = THREE.IncrementWrapStencilOp;
 	backFaceStencilMat.stencilZPass = THREE.IncrementWrapStencilOp;
+	backFaceStencilMat.clippingPlanes = planes;
 
 	// PASS 2
 	// everywhere that the front faces are visible the stencil
@@ -139,29 +103,81 @@ function initStencilMaterial() {
 	frontFaceStencilMat.stencilFail = THREE.DecrementWrapStencilOp;
 	frontFaceStencilMat.stencilZFail = THREE.DecrementWrapStencilOp;
 	frontFaceStencilMat.stencilZPass = THREE.DecrementWrapStencilOp;
+	frontFaceStencilMat.clippingPlanes = planes;
+
+	new GLTFLoader().load( './rooms.glb', (glb) => {
+
+		glb.scene.traverse( (obj) => {
+
+			if ( obj.geometry ) {
+
+				cubeMesh = new THREE.Mesh(
+					obj.geometry,
+					cubeMaterial
+				);
+
+				cubeMeshFront = new THREE.Mesh(
+					obj.geometry,
+					frontFaceStencilMat
+				);
+
+				cubeMeshBack = new THREE.Mesh(
+					obj.geometry,
+					backFaceStencilMat
+				);
+
+				const group = new THREE.Group();
+				group.scale.setScalar( 0.5 );
+				group.rotation.x += Math.PI / 2;
+
+				group.add( cubeMesh, cubeMeshFront, cubeMeshBack );
+				scene.add( group );
+
+			}
+
+		});
+
+	});
+
+	//////////
+	// PLANE
+	//////////
 
 	// PASS 3
 	// draw the plane everywhere that the stencil buffer != 0, which will
 	// only be in the clipped region where back faces are visible.
-	planeStencilMat = new THREE.MeshNormalMaterial();
+	planeStencilMat = new THREE.MeshLambertMaterial();
 	planeStencilMat.stencilWrite = true;
-	planeStencilMat.stencilRef = 0;
+	planeStencilMat.stencilRef = 1;
 	planeStencilMat.stencilFunc = THREE.NotEqualStencilFunc;
 	planeStencilMat.stencilFail = THREE.ReplaceStencilOp;
 	planeStencilMat.stencilZFail = THREE.ReplaceStencilOp;
 	planeStencilMat.stencilZPass = THREE.ReplaceStencilOp;
+
+	planeMesh = new THREE.Mesh(
+		new THREE.PlaneBufferGeometry( 200, 200 ),
+		planeStencilMat
+	);
+
+	planeMesh.renderOrder = 1;
+
+	planeMesh.rotation.x -= Math.PI / 2;
+
+	//
+
+	scene.add( planeMesh );
 }
 
 //
 
 function animate() {
 
-	requestAnimationFrame( animate );
+	const y = ( Math.sin( Date.now() / 1000 ) * 2 ) + 1.7;
 
-	cubeMesh.rotation.x += 0.01;
-	cubeMesh.rotation.y += 0.01;
-	cubeMeshFront.rotation.copy( cubeMesh.rotation );
-	cubeMeshBack.rotation.copy( cubeMesh.rotation );
+	planeMesh.position.y = y;
+	plane.constant = y;
+
+	requestAnimationFrame( animate );
 
 	controls.update();
 

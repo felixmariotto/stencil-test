@@ -5,6 +5,7 @@ Try live :
 - clone the repo
 - `npm install`
 - `node app.js`
+- go to http://localhost:8080
 
 ![screenshot](https://felixmariotto.s3.eu-west-3.amazonaws.com/Screenshot_1.png)
 

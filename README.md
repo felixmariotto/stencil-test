@@ -1,6 +1,11 @@
 # stencil-test
 ### just a test scene to try stencil masking in three.js ###
 
+Try live :
+- clone the repo
+- `npm install`
+- `node app.js`
+
 ![screenshot](https://felixmariotto.s3.eu-west-3.amazonaws.com/Screenshot_1.png)
 
 Inspired from Matt Borrett work :
